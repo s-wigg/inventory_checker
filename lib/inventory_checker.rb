@@ -28,8 +28,8 @@ class InventoryChecker
 
     parsed_json = JSON.parse(File.read(file))
 
-    rescue JSON::ParserError => e
-      raise "#{file} is invalid JSON and cannot be parsed #{e}"
+  rescue JSON::ParserError => e
+    raise "#{file} is invalid JSON and cannot be parsed #{e}"
     return parsed_json
   end
 
