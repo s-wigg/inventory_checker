@@ -9,25 +9,18 @@ class InventoryChecker
     restock_json = convert_to_json(ARGV[0])
     order_json = convert_to_json(ARGV[1])
 
-    @restock_events = generate_restock_events(restock_json)
-    @order_events = generate_order_events(order_json)
+    @restock_events = create_events(restock_json, "Restock")
+    @order_events = create_events(order_json, "Order")
     @current_inventory = Inventory.new
   end
 
-  def generate_restock_events(restock_json)
-    restock_events = []
-    restock_json.each do |restock_event|
-      restock_events << Restock.new(restock_event)
+  def create_events(input, type)
+    events = []
+    klass = Object.const_get(type)
+    input.each do |obj|
+      events << klass.new(obj)
     end
-    return restock_events.sort_by { |event| event.date }
-  end
-
-  def generate_order_events(order_json)
-    order_events = []
-    order_json.each do |order_event|
-      order_events << Order.new(order_event)
-    end
-    return order_events.sort_by { |event| event.date }
+    return events.sort_by { |event| event.date }
   end
 
   def convert_to_json(file)
@@ -41,42 +34,27 @@ class InventoryChecker
   end
 
   def run
+    combined_events = @order_events.concat(@restock_events).sort_by { |event| event.date }
 
+    # uncomment puts statements for debugging purposes
     begin
-      until @order_events.empty? || @restock_events.empty?
-        next_order = @order_events.shift
-        next_restock = @restock_events.shift
-        if next_order.date < next_restock.date
-          @current_inventory.apply_order(next_order)
-        else
-          @current_inventory.apply_inventory_restock(next_restock)
+      until combined_events.empty?
+
+        next_event = combined_events.shift
+        if next_event.class == Restock
+          # puts "applying next stock quantity #{next_event.item_quantity} for item #{next_event.item_stocked} for date #{next_event.date}"
+          @current_inventory.apply_inventory_restock(next_event)
+        elsif next_event.class == Order
+          # puts "applying next order #{next_event.quantity} for item #{next_event.item_ordered} for date #{next_event.date}"
+          @current_inventory.apply_order(next_event)
         end
       end
-
-      until @order_events.empty?
-        next_order = @order_events.shift
-        @current_inventory.apply_order(next_order)
-      end
-
-      until @restock_events.empty?
-        next_restock = @restock_events.shift
-        @current_inventory.apply_inventory_restock
-      end
-
     rescue Inventory::OutOfStockError => e
-      puts "out_of_stock: #{e}"
+      puts "OUT OF STOCK: #{e}"
       return
     end
-
-    puts "success: #{@current_inventory}"
+    puts "SUCCESS"
+    @current_inventory.print_inventory
     return
   end
-  # sample return value
-#   { success: {
-#     shovel: 4,
-      # sled: 1,
-      # snowblower: 4,
-      # tires: 2
-#     }
-#   }
 end
