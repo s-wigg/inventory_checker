@@ -36,17 +36,15 @@ class InventoryChecker
   def run
     combined_events = @order_events.concat(@restock_events).sort_by { |event| event.date }
 
-    # uncomment puts statements for debugging purposes
     begin
       until combined_events.empty?
 
         next_event = combined_events.shift
         if next_event.class == Restock
-          # puts "applying next stock quantity #{next_event.item_quantity} for item #{next_event.item_stocked} for date #{next_event.date}"
           @current_inventory.apply_inventory_restock(next_event)
         elsif next_event.class == Order
-          # puts "applying next order #{next_event.quantity} for item #{next_event.item_ordered} for date #{next_event.date}"
-          @current_inventory.apply_order(next_event)
+          profit = @current_inventory.apply_order(next_event)
+          puts "Profit for Order #{next_event.order_id}: #{profit}"
         end
       end
     rescue Inventory::OutOfStockError => e
